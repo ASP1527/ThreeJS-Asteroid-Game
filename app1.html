@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Getting Started with Three.js</title>
+	<style>
+		body {
+			margin: 0;
+		}
+		#timer {
+			position: absolute;
+			top: 10px;
+			left: 10px;
+			font-size: 24px;
+			color: white;
+			font-family: sans-serif;
+		}
+
+
+		#menu {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+		}
+
+		h1 {
+			font-size: 3em;
+		}
+
+		button {
+			font-size: 1.5em;
+			padding: 15px 30px;
+			margin: 10px;
+			cursor: pointer;
+			background-color: #0077be;
+			border: none;
+			border-radius: 5px;
+		}
+
+		#menu button:hover {
+			background-color: #005f7a;
+		}
+
+		/* Instructions */
+		#instructions-page {
+			display: none;
+			font-size: 1.2em;
+			margin-top: 30px;
+		}
+
+		#game-over {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			text-align: center;
+			color: white;
+			font-family: sans-serif;
+			font-size: 2em;
+			background-color: rgba(0, 0, 0, 0.8);
+			padding: 20px;
+			border-radius: 10px;
+		}
+
+	</style>
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+				"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+			}
+		}
+		</script>
+</head>
+<body>
+
+	<!-- Menu -->
+	<div id="menu">
+		<h1>Menu</h1>
+		<button id="start">Start Game</button>
+		<button id="startx">Start Gamex</button>
+		<button id="instructions">Instructions</button>
+	</div>
+
+	<div id="instructions-page">
+		<p>Instructions:</p>
+		<p>Use the arrow keys to move the player.</p>
+		<p>Right click & use the mouse to move the camera.</p>
+		<p>Left click & move the mouse to move the world.</p>
+		<p>Use the scroll wheel to zoom in & out.</p>
+		<p>Avoid the ateroids.</p>
+		<p>Try to survive.</p>
+		<button id="back">Back to Menu</button>
+	</div>
+
+	<div id="gameOver" style="display: none;">
+		<h1>Game Over</h1>
+		<p id="message"></p>
+		<button id="restartGameBtn">Restart Game</button>
+	</div>
+
+	<div id="timer">
+		<span id="minutes">00</span>:<span id="seconds">00</span>
+	</div>
+	<script type="module" src="app1.js"></script>
+	<script src='query-3.6.3.min.js'></script>
+</body>
+</html>
