@@ -1,147 +1,295 @@
+// imports
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // [3]
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+
+/** 
+ * set of functions to run on startup to provide menu button functionality and set up the game
+ * for when the game loads and for when the game is over
+ */
 $(document).ready(function(){
-    // start game button
-    $('#start').click(function() {
-        $('#menu').css('display', 'none');
+    // hide the timer by default until game begins
+    $('#timer').addClass('hidden');
+    /** 
+     * start space game button
+     */
+    $('#start-space').click(function() {
+        $('#timer').removeClass('hidden');
+        // hide the menu
+        $('#menu').addClass('hidden');
+        // set up the game
+        asteroidID = setInterval(spawnAsteroid, 2000);
+        startSound();
         startTimer();
-        generateSpherical()
-        animateSpherical()
+        generateSpace();
+        animateSpace();
     });
-    // start game button
-    $('#startx').click(function() {
-        $('#menu').css('display', 'none');
+
+    /** 
+     * start ocean game button
+     */
+    $('#start-ocean').click(function() {
+        $('#timer').removeClass('hidden');
+        // hide the menu
+        $('#menu').addClass('hidden');
+        // set up the game
+        asteroidID = setInterval(spawnAsteroid, 2000);
+        startSound();
         startTimer();
-        generatePlanar()
-        animatePlanar()
+        generateOcean();
+        animateOcean();
     });
-    // view instructions & hide menu
+
+    /** 
+     * view instructions & hide menu
+     */
     $('#instructions').click(function() {
-        $('#menu').css('display', 'none');
-        $('#instructions-page').css('display', 'block');
+        $('#menu').addClass('hidden');
+        $('#instructions-page').removeClass('hidden');
     });
-    // go back to menu from instructions
+
+    /** 
+     * back button from the instructions to get back to the menu
+     */
     $('#back').click(function() {
-        $('#menu').css('display', 'block');
-        $('#instructions-page').css('display', 'none');
+        $('#menu').removeClass('hidden');
+        $('#instructions-page').addClass('hidden');
     });
 
-    $('#restartGameBtn').click(function () {
-        $('#gameOver').css('display', 'none');
-        gameOverCount = 0;
-        startTimer();
-        player.spherical.set(planet.getRadius() + 0.1, Math.PI / 2, 0); // Reset player position
-        player.updatePosition(); // Update player's position
+    /** 
+     * reset game state after playing & generate the space map
+     */
+    $('#space').click(function () {
+        // reset animations such as asteroid spawning
+        cancelAnimationFrame(animationID);
+        $('#timer').removeClass('hidden');
+        asteroidID = setInterval(spawnAsteroid, 2000);
+        resetGame();
+        generateSpace();
+        animateSpace();
+    });
 
-        // Remove all asteroids
-        asteroids.forEach((asteroid) => scene.remove(asteroid.mesh));
-        asteroids = []
+    /** 
+     * reset game state after playing & generate the underwater map
+     */
+    $('#ocean').click(function () {
+        // reset animations such as asteroid spawning
+        cancelAnimationFrame(animationID);
+        $('#timer').removeClass('hidden');
+        asteroidID = setInterval(spawnAsteroid, 2000);
+        resetGame();
+        generateOcean();
+        animateOcean();
+    });
 
-        animateSpherical();
+    /** 
+     * open the instructions from the post-game menu
+     * there is a separate menu and functionality to avoid setting the sound multiple times
+     */
+    $('#instructions-after').click(function() {
+        $('#gameOver').addClass('hidden');
+        $('#instructions-page-after').removeClass('hidden');
+    });
+
+    /** 
+    * go back to the post-game menu from the instructions
+    */
+    $('#back-after').click(function() {
+        $('#gameOver').removeClass('hidden');
+        $('#instructions-page-after').addClass('hidden');
     });
     
 });
 
-// Shared variables between the two maps
+/**
+ * function to reset the game by removing everything from the scene and resetting variables
+ */
+function resetGame() {
+    // remove the menu
+    $('#gameOver').addClass('hidden');
+    // remove everything in the scene
+    // [16]
+    while(scene.children.length > 0){ 
+        scene.remove(scene.children[0]); 
+    }
+    // game is not over so the gamover is reset
+    gameOverCount = 0;
+    // restart the timer
+    startTimer();
+    // reset the players position
+    player.spherical.set(planet.getRadius() + 0.1, Math.PI / 2, 0);
+    player.updatePosition();
 
+    // reset the list of asteroids to empty
+    asteroids = []
+}
+
+// shared variables between the two maps
+
+// so animation can be cleared when restarting the game
+let animationID
+
+// load the texture loader
 const textureLoader = new THREE.TextureLoader();
 
+// variable for controls
 let controls;
 
+// camera and renderer
 const w = window.innerWidth;
 const h = window.innerHeight;
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(w, h);
 document.body.appendChild(renderer.domElement)
 
-const fov = 75;
+// camera field of view, aspect ratio and positioning
+const fov = 90;
 const aspect = w / h;
 const near = 0.5;
-const far = 10;
+const far = 20;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.position.z = 2;
 
+/**
+ * function to start the sound
+ * it ensures that sound starts if it has been paused previously for some reason before the game was loaded
+ * soundtrack will plays while the browser is open
+ */
+function startSound() {
+    // get sound context to see if it is playing
+    // [17]
+    const audioContext = THREE.AudioContext.getContext();
+
+    // resume sound at the start if it was paused, prevents an audioContext error
+    if (audioContext.state === 'suspended') {
+        audioContext.resume()
+    }
+
+    // add sound to camera
+    // [18]
+    const listener = new THREE.AudioListener();
+    camera.add( listener );
+    
+    // load the music and play it on a loop
+    const sound = new THREE.Audio( listener );
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load( '../Assets/soundtrack.m4a', function( buffer ) {
+        sound.setBuffer( buffer );
+        sound.setLoop( true );
+        sound.setVolume( 0.5 );
+        sound.play();
+    });
+}
+
+// create the scene
 const scene = new THREE.Scene();
 
 // stop gameover from running multiple times; allows the game to be 'playable' when over
 let gameOverCount = 0;
 
+// variable to hold the planet
 let planet;
+// variable to hold the player
 let player;
 
-let startTime; // time now; start time for timer
+// timer variables
+let startTime;
 let minElement = document.getElementById('minutes'); 
 let secElement = document.getElementById('seconds'); 
+
+// variables to hold the id's of the timer and asteroid intervals
 let timerID;
+let asteroidID;
 
-// Setup orbit controls
+/**
+ * function to provide orbit (mouse) controls
+ */
 function createControls(camera) {
+    // [4]
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.rotateSpeed = 1.0;
-    controls.zoomSpeed = 1.2;
-    controls.panSpeed = 0.8;
 
-    // Set min and max distance for zoom
-    controls.minDistance = 2;  // Minimum zoom distance (closer to the planet)
-    controls.maxDistance = 10; // Maximum zoom distance (further away)
-
-    controls.keys = ['KeyA', 'KeyS', 'KeyD']; // These are custom key bindings
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    // restrict zoom so players cant see nothing by zooming out too much or see inside the planet
+    // [5]
+    controls.minDistance = 2;
+    controls.maxDistance = 10;
 }
 
 // initialise controls
 createControls(camera);
 
-// class for the planet
+/**
+ * function to update the camera when the window is resized
+ */
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/** @class class for the planet */
 class Planet {
-    constructor(radius) {
+    /**
+     * constructor to initialise the planet
+     * @param {*} radius radius of the planet
+     * @param {*} texturePath the path to the file holding the texture of the planet; different for each map
+     */
+    constructor(radius, texturePath) {
+        // [1] (was used before the planet was a class, used when the planet was a sphere with gradient hemisphere lighting)
         this.radius = radius;
+        // load either mercury or the turtle shell
+        const planetTexture = textureLoader.load(texturePath);
 
-        const planetTexture = textureLoader.load('mercury.jpg');
-
+        // create planet as a sphere
         const geometry = new THREE.SphereGeometry(radius, 32, 32);
         const material = new THREE.MeshStandardMaterial({
             map: planetTexture,
-            flatShading: false, // smoother shading
+            bumpMap: planetTexture, // add some bumps, more prelavent on the turtle shell
+            bumpScale: 5
         });
         this.mesh = new THREE.Mesh(geometry, material);
-    }
-
-    addToScene(scene) {
+        // add planet to the scene
         scene.add(this.mesh);
     }
 
+    /**
+     * function to return the radius of the planet
+     * @returns {*} radius
+     */
     getRadius() {
         return this.radius;
     }
 }
 
-// player class
+/** @class player class */
 class Player {
+    /**
+     * constructor to spawn a new player
+     */
     constructor() {
         this.loader = new GLTFLoader();
-        this.avatar = 'sphere.gltf';
-        this.planet = planet; // Reference to the Planet object
+        // player model
+        this.avatar = '../Assets/sphere.gltf';
+        // refer to planet to get the radius to work out the players position
+        this.planet = planet;
         this.spherical = new THREE.Spherical();
         this.player = null;
-        this.spherical.set(this.planet.getRadius() + 0.05, Math.PI / 2, 0); // Position slightly above the surface
-        this.geometry1 = new THREE.BoxGeometry(0.05, 0.05, 0.05); // Create a cube geometry
-        this.material1 = new THREE.MeshBasicMaterial({
-            color: 0x000000, // Black color (or any other)
-            transparent: true, // Enable transparency
-            opacity: 0, // Make it fully invisible
+        // set the player slightly above the planets surface
+        // [9]
+        this.spherical.set(this.planet.getRadius() + 0.05, Math.PI / 2, 0);
+        // create an invisible cube to be a bounding box
+        this.boundingBoxGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+        this.boundingBoxMaterial = new THREE.MeshBasicMaterial({
+            transparent: true,
+            opacity: 0
         });
-        this.boundingBoxCube = new THREE.Mesh(this.geometry1, this.material1)
+        this.boundingBoxCube = new THREE.Mesh(this.boundingBoxGeometry, this.boundingBoxMaterial)
+        // set the bounding box
         this.boundingBox = new THREE.Box3();
         this.boundingBox.setFromObject(this.boundingBoxCube);
-        this.loader.load('sphere.gltf', (gltf) => {
+        // load the player 
+        // [10]
+        this.loader.load(this.avatar, (gltf) => {
             this.player = gltf.scene;
             this.player.scale.set(0.05, 0.05, 0.05);
             scene.add(this.player);
@@ -149,40 +297,56 @@ class Player {
         });
     }
 
-    loadModel() {
-    }
-
+    /**
+     * update position of the player and the bounding box
+     */
     updatePosition() {
         if (this.player) {
-            // Update position based on spherical coordinates
-            this.player.position.setFromSpherical(this.spherical);
+            // update position of player and bounding box based on spherical coordinates
+            //[2], [13]
+            this.player.position.setFromSpherical(this.spherical); 
             this.boundingBoxCube.position.setFromSpherical(this.spherical);
             this.boundingBox.setFromObject(this.boundingBoxCube);
         }
     }
 
+    /**
+     * move the player in the desired direction based on the arrow key that they pressed
+     * @param {*} direction direction of the arrow key pressed
+     */
     move(direction) {
-        const moveStep = 0.1; // Angular step for movement
+        // [7], [8]
+        // value of one step
+        const step = 0.1;
         switch (direction) {
+            // move up, subtract from phi
             case 'up':
-                this.spherical.phi -= moveStep; // Allow movement beyond the poles
+                this.spherical.phi -= step;
                 break;
+            // move down, add to phi
             case 'down':
-                this.spherical.phi += moveStep; // Allow movement beyond the poles
+                this.spherical.phi += step;
                 break;
+            // move left, reduce theta
             case 'left':
-                this.spherical.theta -= moveStep / Math.sin(this.spherical.phi); // Adjust theta based on phi
+                this.spherical.theta -= step / Math.sin(this.spherical.phi); 
                 break;
+            // move right, increase theta
             case 'right':
-                this.spherical.theta += moveStep / Math.sin(this.spherical.phi); // Adjust theta based on phi
+                this.spherical.theta += step / Math.sin(this.spherical.phi); 
                 break;
         }
+        // update the position when moving
         this.updatePosition();
     }
 }
 
-// Control the player with keyboard events
+/**
+ * get the key that the user pressed and move the user
+ * @param {*} event key press event
+ */
 function keyboardControl(event) {
+    // [6]
     switch (event.code) {
         case 'ArrowUp':
             player.move('up');
@@ -201,11 +365,13 @@ function keyboardControl(event) {
 
 window.addEventListener('keydown', keyboardControl);
 
-
-
-// asteroid class
+/** @class asteroid class */
 class Asteroid {
-    constructor() {
+    /**
+     * create a new asteroid
+     * @param {*} speed speed for the asteroid
+     */
+    constructor(speed) {
         this.mesh = new THREE.Mesh(
             new THREE.SphereGeometry(0.1, 6, 6),
             new THREE.MeshStandardMaterial({
@@ -213,19 +379,26 @@ class Asteroid {
                 flatShading: true, // use flatshading to make it less spherical
             })
         )
-        this.speed = 0.02; // speed of the asteroid 
-        this.direction = new THREE.Vector3(); // move directopm for asteroid
+        // speed of the asteroid 
+        this.speed = speed;
+        // move directopm for asteroid
+        this.direction = new THREE.Vector3();
         this.boundingBox = new THREE.Box3();
         this.boundingBox.setFromObject(this.mesh);
-        this.asteroidPosition(); // get position of sphere asteroid will crash onto
+        // get position of sphere asteroid will crash onto
+        this.asteroidPosition(); 
         scene.add(this.mesh);
     }
 
+    /**
+     * function that works out the position that the asteroid will travel in
+     */
     asteroidPosition() {
         // get a phi and theta to get a position on the sphere where the asteroid will crash onto
-        const phi = Math.random() * Math.PI; // angle between 0 and π
-        const theta = Math.random() * 2 * Math.PI; // angle between 0 and 2π
-        const distance = 6; // initial distance, asteroid spawns ~ 6 planets away
+        const phi = Math.random() * Math.PI; 
+        const theta = Math.random() * 2 * Math.PI; 
+        // initial distance, asteroid spawns ~ 6 planets away
+        const distance = 6; 
 
         this.mesh.position.setFromSphericalCoords(distance, phi, theta);
 
@@ -233,6 +406,9 @@ class Asteroid {
         this.direction.copy(this.mesh.position).normalize().negate();
     }
 
+    /**
+     * function to update the position of the asteroid as it moves
+     */
     update() {
         // move asteroid toward planet
         this.mesh.position.addScaledVector(this.direction, this.speed);
@@ -246,9 +422,17 @@ class Asteroid {
     }
 }
 
+/**
+ * go through the list of asteroids to see if any of them have collided with the player
+ * @param {*} player the player
+ * @param {*} asteroids the list of asteroids
+ */
 function checkCollision(player, asteroids) {
     for (let i = 0; i < asteroids.length; i++) {
+        // check each asteroid for a collision with the player
+        // [12]
         if (player.boundingBox.intersectsBox(asteroids[i].boundingBox)) {
+            // do gameover only once to stop the timer, needed since the game still works once the game is over
             gameOverCount ++;
             if (gameOverCount == 1) {
                 gameOver();
@@ -257,15 +441,25 @@ function checkCollision(player, asteroids) {
     }
 }
 
+/**
+ * function to get the time when the timer is loaded
+ */
 function startTimer() {
     startTime = Date.now();
 }
 
+/**
+ * function to clear the timer once the game is over & reset
+ */
 function resetTimer() {
-    clearInterval(timerID); // Stop the timer
+    clearInterval(timerID);
 }
 
+/**
+ * function to update the timer every second
+ */
 function timer() {
+    // [14], [15]
     let elapsed = Date.now() - startTime; // elapsed time in milliseconds
     let totalTime = Math.floor(elapsed / 1000); // total time in seconds
     let mins = Math.floor(totalTime / 60); // total mins
@@ -288,45 +482,85 @@ function timer() {
 // array to hold asteroids
 let asteroids = [];
 
-// function to make an asteroid and add it to the array
+/**
+ * function to spawn an asteroid by creating a new one and adding it to the array of asteroids
+ */
 function spawnAsteroid() {
-    const asteroid = new Asteroid();
+    // random speed for the asteroid
+    let speed = Math.random() * 0.04;
+    const asteroid = new Asteroid(speed);
     asteroids.push(asteroid);
 }
 
-// update the movement of all asteroidsw
+/**
+ * function to update the asteroid movement of all asteroids on the screen
+ */
 function updateAsteroids() {
     asteroids.forEach((asteroid) => asteroid.update());
 }
 
-// interval to spawn asteroids
-setInterval(spawnAsteroid, 2000);
 
-
-// Function to trigger Game Over
+/**
+ * function to get the time the player survived for and open the game over screen
+ */
 function gameOver() {
-    resetTimer(); // Stop the timer
-    $('#gameOver').css('display', 'block'); // Show the Game Over screen
-    const elapsedTime = Math.floor((Date.now() - startTime) / 1000); // Total time in seconds
+    // [18]
+    const listener = new THREE.AudioListener();
+    camera.add( listener );
+    
+    // load the explosion sound and play it once at a high volume
+    const sound = new THREE.Audio( listener );
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load( '../Assets/Explosion.m4a', function( buffer ) {
+        sound.setBuffer( buffer );
+        sound.setLoop( false );
+        sound.setVolume( 10 );
+        sound.play();
+    });
+    // stop the asteroids
+    clearInterval(asteroidID);
+    // stop the timer
+    resetTimer(); 
+    // show the game over screen
+    $('#gameOver').removeClass('hidden');
+    $('#timer').addClass('hidden');
+    // normalise the time
+    const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
     const minutes = Math.floor(elapsedTime / 60);
     const seconds = elapsedTime % 60;
 
-    // Display the survival time
+    // display how long user survived for
     $('#message').text(`You survived for ${minutes} minutes and ${seconds} seconds.`);
 }
 
-function generateSpherical() {
+/**
+ * function to spawn some fish in the scene
+ */
+function spawnRandomFish() {
+    let flod = new GLTFLoader();
+    flod.load('../Assets/happy-fish.gltf', (gltf) => {
+
+        let fish = gltf.scene;
+
+        scene.add(fish);
+        fish.scale.set(0.1, 0.1, 0.1);
+        fish.position.set(Math.random()*4+1, 3, Math.random()*4+1); 
+    })
+}
+
+/**
+ * function to generate the space scene
+ */
+function generateSpace() {
     // create planet with radius 1
-    planet = new Planet(1.0);
-    // add planet to the scene
-    planet.addToScene(scene);
+    planet = new Planet(1.0, '../Assets/mercury.jpg');
 
     // add some light to the planet
     const hemiLight = new THREE.HemisphereLight(0xe6e6ed, 0xe6e6ed);
     scene.add(hemiLight);
 
-    // add the sun
-    const sunTexture = textureLoader.load('sun.jpg'); // load the texture
+    // add the sun 
+    const sunTexture = textureLoader.load('../Assets/sun.jpg'); // load the texture
     const sunRadius = 2; // sun is double the planet size
     const sunGeo = new THREE.SphereGeometry(sunRadius, 32, 32);
     const sunMat = new THREE.MeshBasicMaterial({
@@ -343,75 +577,133 @@ function generateSpherical() {
     sunLight.position.copy(sun.position);
     scene.add(sunLight);
 
-    // add starts background for the scene
-    const backgroundTexture = textureLoader.load('stars.jpg');
-    scene.background = backgroundTexture;
-
     // load player
     player = new Player();
-    player.loadModel();
+
+    // add starts background for the scene
+    const backgroundTexture = textureLoader.load('../Assets/stars.jpg');
+    scene.background = backgroundTexture;
 
     const light = new THREE.AmbientLight( 0x404040 ); // soft white ambient light
     scene.add(light);
 }
 
-function generatePlanar() {
+/**
+ * function to generate the ocean scene
+ */
+function generateOcean() {
     // create planet with radius 1
-    planet = new Planet(1.0);
-    // add planet to the scene
-    planet.addToScene(scene);
+    planet = new Planet(1.0, '../Assets/turtle.jpg');
 
-    // add some light to the planet
+    // add some low light to the planet
     const hemiLight = new THREE.HemisphereLight(0xe6e6ed, 0xe6e6ed);
     scene.add(hemiLight);
 
 
-    let sun;  // Declare the sun variable
+    // sun in the ocean map is an angler fish
+    let sun;  
 
+    // load the fish and set it as the sun
+    // [10]
     const fishLoader = new GLTFLoader();
-    fishLoader.load('angler.gltf', (gltf) => {
-        sun = gltf.scene; // This is the loaded 3D model of the sun
+    fishLoader.load('../Assets/angler.gltf', (gltf) => {
+        sun = gltf.scene; 
         sun.scale.set(0.5, 0.5, 0.5);
-        // Set the position of the sun after the model is loaded
-        sun.position.set(-2, 3, 0);  // Set the position
-        scene.add(sun);  // Add the model to the scene
+        // offset position slightly so the bulb is over the planet
+        sun.position.set(-2, 3, 0); 
+        scene.add(sun); 
 
-        // Optional: Add a point light that mimics the sun's light
-        const sunLight = new THREE.PointLight(0xFFC0CB, 10, 100);  // Yellow light, intensity 3, range 100
-        sunLight.position.copy(sun.position);  // Position the light where the sun is
-        scene.add(sunLight);  // Add the light to the scene
+        // add some pink light from the position of the bulb on the angler fish
+        let bulb = new THREE.Vector3(0, 3, 0)
+        const sunLight = new THREE.PointLight(0xFFC0CB, 10, 100);
+        sunLight.position.copy(bulb);
+        scene.add(sunLight); 
     });
+
+    // generate a school of fish
+    for (let i = 0; i < 8; i++) {
+        spawnRandomFish();
+    }
 
     // load player
     player = new Player();
-    player.loadModel();
 
     const light = new THREE.AmbientLight( 0x404040 ); // soft white ambient light
     scene.add(light);
     // add starts background for the scene
-    const backgroundTexture = textureLoader.load('weird-bg.jpg');
+    const backgroundTexture = textureLoader.load('../Assets/ocean.jpg');
     scene.background = backgroundTexture;
 }
 
-// Animation loop
-function animateSpherical() {
-    requestAnimationFrame(animateSpherical);
+/**
+ * animation function for the space game
+ */
+function animateSpace() {
+    animationID = requestAnimationFrame(animateSpace);
     timerID = setInterval(timer, 1000);
     controls.update();
-    updateAsteroids(); // Update asteroid positions
+    updateAsteroids();
     checkCollision(player, asteroids, timerID);
     renderer.render(scene, camera);
 }
 
-// Animation loop
-function animatePlanar() {
-    requestAnimationFrame(animatePlanar);
+/**
+ * animation function for the underwater game
+ */
+function animateOcean() {
+    animationID = requestAnimationFrame(animateOcean);
     timerID = setInterval(timer, 1000);
     controls.update();
-    updateAsteroids(); // Update asteroid positions
+    updateAsteroids(); 
     checkCollision(player, asteroids, timerID);
     renderer.render(scene, camera);
 }
 
+/*
+References (same as in the main report)
 
-//TODO: make the planet on the fish mode different (Maybe make it a tortoise shell?), why is bg desaturated?, add the special ball to erase the asteroids
+[1] Bobby, R (2024) Getting Started with Three.js: A Beginner’s Tutorial, YouTube, Available at: https://youtu.be/XPhAR1YdD6o?si=A8u4Ry-NY77i842m
+
+[2] prisoner849 (2018) [SOLVED] Move items around a sphere, Threejs Discourse, Available at: https://discourse.threejs.org/t/solved-move-items-around-a-sphere/1877/3 
+
+[3] Ishu1999 (2021) Importing Orbit Controls, Threejs Discourse, Available at: https://discourse.threejs.org/t/importing-orbit-controls/33131
+
+[4] Three.js. (n.d.) OrbitControls, Threejs Docs, Available at: https://threejs.org/docs/#examples/en/controls/OrbitControls
+
+[5] aswzn (2021) How to limit max and min zoom in THREE.OrbitControls with THREE.OrthographicCamera, Threejs Discourse, Available at:  https://discourse.threejs.org/t/how-to-limit-max-and-min-zoom-in-three-orbitcontrols-with-three-orthographiccamera/9800
+
+[6] Negi, A (2024) Three.js Tutorial: Move 3D Mesh with WASD and Arrow Keys for Character-Like Control, Medium, Available at: https://medium.com/javascript-alliance/three-js-tutorial-move-3d-mesh-with-wasd-and-arrow-keys-for-character-like-control-8b87b51ded61
+
+[7] Dr. Maultsby, B (2020) Introduction to spherical coordinates, YouTube, Available at: https://www.youtube.com/watch?v=8x_UjFUySRg
+
+[8] XYZ + RGB (2020) Spherical Coordinates 3D Animation, YouTube, Available at: https://youtu.be/Ex_g2w4E5lQ?si=aX2qtS-A4K4AceiP
+
+[9] Three.js. (n.d.) Spherical, Threejs Docs, Available at:  https://threejs.org/docs/#api/en/math/Spherical
+
+[10] Three.js. (n.d.) GTLFLoader, Threejs Docs, Available at:  https://threejs.org/docs/#examples/en/loaders/GLTFLoader
+
+[11] Three.js. (n.d.) lookAt, Threejs Docs, Available at:  https://threejs.org/docs/#api/en/core/Object3D.lookAt
+
+[12] Jain, H (2024) Exploring Collision Detection in Three.js, Medium, Available at: https://jainmanshu.medium.com/exploring-collision-detection-in-three-js-82dc95a383f4#:~:text=In%20order%20to%20detect%20collisions,occupied%20by%20a%203D%20object.&text=const%20redCubeBB%20%3D%20new%20THREE.,Vector3()%2C%20new%20THREE.
+
+[13] Three.js. (n.d.) setFromSpherical, Threejs Docs, Available at:  https://threejs.org/docs/#api/en/math/Vector3.setFromSpherical
+
+[14] Mark (2011) plain count up timer in javascript, Stack Overflow, Available at:  https://stackoverflow.com/questions/5517597/plain-count-up-timer-in-javascript
+
+[15] W3 Schools (n.d.) How TO - JavaScript Countdown Timer, W3 Schools, Available at: https://www.w3schools.com/howto/howto_js_countdown.asp 
+
+[16] ExtremelySeriousChicken (2017) How do I clear THREE.JS Scene, Stack Overflow, Available at: https://stackoverflow.com/questions/30359830/how-do-i-clear-three-js-scene 
+
+[17] Three.js. (n.d.) AudioListener, Threejs Docs, Available at:  https://threejs.org/docs/?q=audio#api/en/audio/AudioListener
+
+[18] Three.js. (n.d.) AudioContext, Threejs Docs, Available at:  https://threejs.org/docs/?q=audio#api/en/audio/AudioContext
+
+[19] Krita Foundation, Krita (application) Available at: https://krita.org/en/ 
+
+[20] Blender Foundation, Blender (application) Available at: https://www.blender.org/ 
+
+[21] Apple, GarageBand (application) Available at: https://apps.apple.com/us/app/garageband/id408709785 
+
+[21] Google LLC, Recorder (application) Available at: https://play.google.com/store/apps/details?id=com.google.android.apps.recorder&hl=en_GB&pli=1 
+
+*/

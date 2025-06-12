@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Asteroids Kill</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet"/>
+	<style>
+		* {
+			overflow: hidden;
+			padding: 0;
+			box-sizing: border-box;
+			font-family: "Poppins", sans-serif;
+		}
+		body {
+			display: flex;
+			flex-direction: column;
+		}
+
+		#timer {
+			position: absolute;
+			top: 10px;
+			left: 10px;
+			font-size: 24px;
+			color: white;
+		}
+
+		.menu {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+		}
+
+		h1 {
+			font-size: 3em;
+		}
+
+		button {
+			font-size: 1.5em;
+			padding: 15px 30px;
+			margin: 10px;
+			cursor: pointer;
+			background-color: #0096ed;
+			border: none;
+			border-radius: 5px;
+		}
+
+		button:hover {
+			background-color: #0175b9;
+		}
+
+		.instructions {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+		}
+
+		.hidden {
+			display: none;
+		}
+
+		.padding {
+			margin-top: 20vh;
+		}
+	</style>
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+				"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+			}
+		}
+		</script>
+</head>
+<body>
+	<div id="menu" class="menu padding">
+		<h1>Asteroids Kill ☄️</h1>
+		<h1>Menu</h1>
+		<div class="buttons">
+			<button id="start-space">Space</button>
+			<button id="start-ocean">Ocean</button>
+			<button id="instructions">Instructions</button>
+		</div>
+	</div>
+
+	<div id="instructions-page" class="instructions padding hidden">
+		<h1>Instructions</h1>
+		<p>Use the arrow keys to move the player.</p>
+		<p>Right click & use the mouse to move the camera.</p>
+		<p>Left click & move the mouse to move the world.</p>
+		<p>Use the scroll wheel to zoom in & out.</p>
+		<p>Avoid the ateroids.</p>
+		<p>Try to survive.</p>
+		<button id="back">Back to Menu</button>
+	</div>
+
+	<div id="instructions-page-after" class="instructions hidden">
+		<h1>Instructions</h1>
+		<p>Use the arrow keys to move the player.</p>
+		<p>Right click & use the mouse to move the camera.</p>
+		<p>Left click & move the mouse to move the world.</p>
+		<p>Use the scroll wheel to zoom in & out.</p>
+		<p>Avoid the ateroids.</p>
+		<p>Try to survive.</p>
+		<button id="back-after">Back to Menu</button>
+	</div>
+
+	<!--hide the game over menu at the start by default-->
+	<div id="gameOver" class="menu hidden">
+		<h1>Game Over</h1>
+		<p id="message"></p>
+		<div class="buttons">
+			<button id="space">Space</button>
+			<button id="ocean">Ocean</button>
+			<button id="instructions-after">Instructions</button>
+		</div>
+	</div>
+
+	<div id="timer">
+		<span id="minutes">00</span>:<span id="seconds">00</span>
+	</div>
+	<script type="module" src="app1.js"></script>
+	<script src='../Extra Libraries/query-3.6.3.min.js'></script>
+</body>
+</html>
